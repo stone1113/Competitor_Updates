@@ -34,8 +34,9 @@ public class CompetitorReportController {
     @PostMapping("/generate")
     public ApiResponse<CompetitorReportPipeline.Result> generate(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(defaultValue = "false") boolean push) {
-        return ApiResponse.success(pipeline.run(date, push));
+            @RequestParam(defaultValue = "false") boolean push,
+            @RequestParam(defaultValue = "true") boolean supplement) {
+        return ApiResponse.success(pipeline.run(date, push, supplement));
     }
 
     /** 手动触发汽车之家参数同步（抓 → 写 DB）。约 30-60 秒。 */

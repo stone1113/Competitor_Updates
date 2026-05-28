@@ -47,16 +47,18 @@ public class CompetitorCardBuilder {
 
     /** 单板块 byte 上限（飞书 section 硬限 2500，超出截断） */
     private static final int SECTION_BYTE_LIMIT = 2400;
+    /** 每个品牌/车型组最多展示的动态明细数，仍受 section byte 上限保护。 */
+    private static final int MAX_GROUP_DISPLAY_ITEMS = 8;
 
     /** event_type → 中文标题 */
     private static final Map<String, String> EVENT_TYPE_LABEL = Map.of(
             "launch",          "🚀 产品动态",
-            "price_finance",   "💰 价格 & 金融政策",
+            "price_finance",   "💰 价格金融",
             "campaign",        "📣 营销传播",
             "strategic_action", "🧭 战略动作",
-            "sales_milestone", "📈 销量 & 交付里程碑"
+            "sales_milestone", "📈 销量 & 交付"
     );
-    private static final String[] EVENT_ORDER = {"launch", "price_finance", "campaign", "sales_milestone", "strategic_action"};
+    private static final String[] EVENT_ORDER = {"launch", "price_finance", "campaign", "sales_milestone"};
 
     /** source_tool → 中文显示名 */
     private static final Map<String, String> SOURCE_TOOL_LABEL = Map.of(
@@ -198,7 +200,7 @@ public class CompetitorCardBuilder {
             // ===== v8+ 顶部总结：briefing 移到 header 之后第一位 =====
             if (briefing != null && !briefing.trim().isEmpty()) {
                 elements.add(divNode("lark_md",
-                        "<font color='grey'>**📊 今日速览**</font>\n" + renderStructuredBriefing(briefing)));
+                        "**📊 今日速览**\n" + renderStructuredBriefing(briefing)));
             }
 
             // ===== v8+ KPI 横排（column_set 4 列）=====
@@ -351,9 +353,6 @@ public class CompetitorCardBuilder {
                     groupBody.append(safe(title));
                 }
                 groupBody.append(renderProductSourceLine(x)).append("\n");
-                if (!item.contentSnippet.isEmpty()) {
-                    groupBody.append("　　要点：").append(safe(item.contentSnippet)).append("\n");
-                }
                 if (item.ocrPart != null && !item.ocrPart.isEmpty()
                         && !isDuplicateSnippet(item.ocrPart, title, item.contentSnippet)) {
                     groupBody.append("　<font color='").append(COLOR_BRAND).append("'>🔍 ")
@@ -365,7 +364,7 @@ public class CompetitorCardBuilder {
               .append(formatProductSourceCounts(displayed.weiboCount, displayed.webCount)).append("</font>\n");
             String summary = lookupGroupSummary(groupSummaries, displayed.groupKey);
             if (!summary.isEmpty()) {
-                sb.append("总结：").append(highlightImportant(summary)).append("\n");
+                sb.append("总结：").append(highlightImportant(truncateAtSentenceBoundary(summary, 92))).append("\n");
             }
             sb.append(groupBody);
             sb.append("\n");
@@ -414,7 +413,7 @@ public class CompetitorCardBuilder {
         if (byEvent == null || byEvent.isEmpty()) return Collections.emptyList();
         Map<Long, CardInsight> insights = cardInsights == null ? Collections.emptyMap() : cardInsights;
         List<GroupSummaryInput> inputs = new ArrayList<>();
-        for (String eventType : Arrays.asList("launch", "price_finance", "campaign", "strategic_action")) {
+        for (String eventType : Arrays.asList("launch", "price_finance", "campaign")) {
             List<WebSearchNews> rows = byEvent.get(eventType);
             if (rows == null || rows.isEmpty()) continue;
             LinkedHashMap<String, List<WebSearchNews>> grouped = groupProductEventsByModel(rows);
@@ -465,7 +464,8 @@ public class CompetitorCardBuilder {
             String title = buildProductItemTitle(x);
             String ocrPart = buildLlmDetailHighlight(cardInsights, x, title);
             String contentSnippet = buildReadableContentSnippet(eventType, x, title, ocrPart, cardInsights);
-            if (!"launch".equals(eventType) && contentSnippet.isEmpty() && (ocrPart == null || ocrPart.isEmpty())) {
+            if (!"launch".equals(eventType) && !"campaign".equals(eventType)
+                    && contentSnippet.isEmpty() && (ocrPart == null || ocrPart.isEmpty())) {
                 continue;
             }
             displayedItems.add(new DisplayedItem(x, title, contentSnippet, ocrPart));
@@ -571,7 +571,7 @@ public class CompetitorCardBuilder {
               .append(formatProductSourceCounts(displayed.weiboCount, displayed.webCount)).append("</font>\n");
             String summary = lookupGroupSummary(groupSummaries, displayed.groupKey);
             if (!summary.isEmpty()) {
-                sb.append("总结：").append(highlightImportant(summary)).append("\n");
+                sb.append("总结：").append(highlightImportant(truncateAtSentenceBoundary(summary, 92))).append("\n");
             }
 
             for (int i = 0; i < displayed.items.size(); i++) {
@@ -586,9 +586,6 @@ public class CompetitorCardBuilder {
                     sb.append(safe(title));
                 }
                 sb.append(renderProductSourceLine(x)).append("\n");
-                if (!item.contentSnippet.isEmpty()) {
-                    sb.append("　　要点：").append(safe(item.contentSnippet)).append("\n");
-                }
             }
 
             String specHighlight = displayed.groupHighlight;
@@ -647,20 +644,10 @@ public class CompetitorCardBuilder {
 
     private static List<WebSearchNews> selectProductDisplayItems(List<WebSearchNews> sorted) {
         List<WebSearchNews> out = new ArrayList<>();
-        int weibo = 0;
-        int web = 0;
         if (sorted == null) return out;
         for (WebSearchNews item : sorted) {
-            if (isWeiboOfficial(item)) {
-                if (weibo >= 2) continue;
-                out.add(item);
-                weibo++;
-            } else {
-                if (web >= 1) continue;
-                out.add(item);
-                web++;
-            }
-            if (out.size() >= 3) break;
+            out.add(item);
+            if (out.size() >= MAX_GROUP_DISPLAY_ITEMS) break;
         }
         return out;
     }
@@ -821,7 +808,7 @@ public class CompetitorCardBuilder {
             if (isLowValueLlmPoint(point)) continue;
             filtered.add(point);
         }
-        return formatInsightPoints(filtered, 3);
+        return formatInsightPoints(filtered, 1);
     }
 
     private static String buildLlmDetailHighlight(Map<Long, CardInsight> cardInsights,
@@ -1635,6 +1622,7 @@ public class CompetitorCardBuilder {
 
     private static String renderStructuredBriefing(String briefing) {
         String normalized = briefing == null ? "" : briefing.trim()
+                .replace("\\n", "\n")
                 .replace("\r", "")
                 .replaceAll("\\n{2,}", "\n");
         if (normalized.isEmpty()) return "";
@@ -1643,13 +1631,13 @@ public class CompetitorCardBuilder {
         String risk = extractBriefingSection(normalized, "风险提示");
         String strategy = extractBriefingSection(normalized, "应对策略");
         if (dynamic.isEmpty() && risk.isEmpty() && strategy.isEmpty()) {
-            return normalized;
+            return truncateAtSentenceBoundary(normalized.replaceAll("\\s+", " "), 180);
         }
 
         StringBuilder sb = new StringBuilder();
-        appendBriefingLine(sb, "📌", "动态总结", dynamic);
-        appendBriefingLine(sb, "⚠️", "风险提示", risk);
-        appendBriefingLine(sb, "🎯", "应对策略", strategy);
+        appendBriefingLine(sb, "📌", "动态", dynamic);
+        appendBriefingLine(sb, "⚠️", "风险", risk);
+        appendBriefingLine(sb, "🎯", "应对", strategy);
         return sb.toString().trim();
     }
 
@@ -1682,9 +1670,10 @@ public class CompetitorCardBuilder {
 
     private static void appendBriefingLine(StringBuilder sb, String icon, String label, String content) {
         if (content == null || content.trim().isEmpty()) return;
-        if (sb.length() > 0) sb.append("\n");
+        if (sb.length() > 0) sb.append("\n\n");
+        String compact = truncateAtSentenceBoundary(content.replaceAll("\\s+", " ").trim(), 78);
         sb.append(icon).append(" **").append(label).append("：** ")
-          .append(safe(content.replaceAll("\\s+", " ").trim()));
+          .append(highlightImportant(safe(compact)));
     }
 
     private static List<String> splitBriefingItems(String content) {
@@ -2222,14 +2211,13 @@ public class CompetitorCardBuilder {
             String contentSnippet = buildMarketHotInsightSnippet(x, title, "", cardInsights);
             if (contentSnippet.isEmpty()) continue;
             display.put(x, contentSnippet);
-            if (display.size() >= 7) break;
+            if (display.size() >= 3) break;
         }
         if (display.isEmpty()) return "";
 
         StringBuilder sb = new StringBuilder();
         sb.append("**🔥 市场近期热点**　<font color='grey'>")
           .append(display.size()).append(" 条</font>\n");
-        sb.append("<font color='grey'>跟踪汽车垂媒中的热门车型、价格战、订单销量、技术和舆情事件，用于市场投入和传播策略判断。</font>\n");
 
         int i = 0;
         for (Map.Entry<WebSearchNews, String> entry : display.entrySet()) {
@@ -2597,35 +2585,15 @@ public class CompetitorCardBuilder {
         return Instant.ofEpochMilli(addTs).atZone(CN_ZONE).format(SHORT_DATE_FMT);
     }
 
-    /** v8+ KPI 列：图标 + 数字 + 标签。颜色突出。 */
-    private static Map<String, Object> kpiColumn(String icon, String label, int count, String color) {
-        Map<String, Object> col = new LinkedHashMap<>();
-        col.put("tag", "column");
-        col.put("width", "weighted");
-        col.put("weight", 1);
-        col.put("vertical_align", "top");
-        String content = String.format(
-                "<font color='grey'>%s %s</font>\n**<font color='%s'>%d</font>**",
-                icon, label, color, count);
-        List<Object> els = new ArrayList<>();
-        els.add(divNode("lark_md", content));
-        col.put("elements", els);
-        return col;
-    }
-
-    /** v8+ KPI 横排 column_set（4 列：上市 / 价格 / 营销 / 销量）。 */
+    /** v8+ KPI 横排：手机上主动排成 2 行，避免飞书窄屏把单行挤成不规则换行。 */
     private static Map<String, Object> kpiRow(int launchCnt, int priceCnt, int campaignCnt, int salesCnt) {
-        Map<String, Object> set = new LinkedHashMap<>();
-        set.put("tag", "column_set");
-        set.put("flex_mode", "none");
-        set.put("horizontal_spacing", "default");
-        List<Object> cols = new ArrayList<>();
-        cols.add(kpiColumn("🚀", "产品动态", launchCnt, "blue"));
-        cols.add(kpiColumn("💰", "价格金融", priceCnt, COLOR_BRAND));
-        cols.add(kpiColumn("📣", "营销传播", campaignCnt, "grey"));
-        cols.add(kpiColumn("📈", "销量车型", salesCnt, "green"));
-        set.put("columns", cols);
-        return set;
+        String content = String.format(
+                "🚀 产品 **<font color='blue'>%d</font>**　｜　"
+                        + "💰 价格 **<font color='%s'>%d</font>**\n"
+                        + "📣 营销 **%d**　｜　"
+                        + "📈 销量 **<font color='green'>%d</font>**",
+                launchCnt, COLOR_BRAND, priceCnt, campaignCnt, salesCnt);
+        return divNode("lark_md", content);
     }
 
     /** v8+ collapsible_panel（默认收起的次要内容）。 */

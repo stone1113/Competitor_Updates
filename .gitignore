@@ -72,6 +72,7 @@ logs/
 
 ### 开发临时产物（不应入库）###
 .tmp/
+tmp/
 .superpowers/
 .claude/
 /h5-*.png

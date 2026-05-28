@@ -98,13 +98,12 @@ public class CompetitorReportPipeline {
     private String frontendBaseUrl;
 
     /** v3 4 类事件 + 每类拉取上限（去重后实际可能少很多）。 */
-    private static final String[] EVENT_TYPES_ORDER = {"launch", "price_finance", "campaign", "sales_milestone", "strategic_action"};
+    private static final String[] EVENT_TYPES_ORDER = {"launch", "price_finance", "campaign", "sales_milestone"};
     private static final Map<String, Integer> EVENT_TYPE_LIMITS = Map.of(
             "launch",          30,
             "price_finance",   30,
             "campaign",        30,
-            "sales_milestone", 30,
-            "strategic_action", 40
+            "sales_milestone", 30
     );
 
     /** 事件去重的前缀长度（按 event_summary 前 N 字符判断重复） */
@@ -136,32 +135,41 @@ public class CompetitorReportPipeline {
     private static final Set<String> SALES_AUTHORITY_BRANDS = Set.of("乘联会", "中汽协");
 
     public Result run(LocalDate targetDate, boolean push) {
+        return run(targetDate, push, true);
+    }
+
+    public Result run(LocalDate targetDate, boolean push, boolean supplementWebNews) {
         LocalDate date = targetDate != null ? targetDate : LocalDate.now();
         long sinceMs = System.currentTimeMillis() - WINDOW_MS;
         log.info("[CompetitorPipeline] v3 start date={} window=32h since={}", date, sinceMs);
 
         // ===== Step 0: 微博之外的网页补采 =====
         // 按车系配置里的品牌+车型搜索近 24h 汽车事件，入 web_search_news 后复用事件分类。
-        try {
-            int inserted = webNewsCollectorService.collectBenchmarkModelEvents();
-            inserted += webNewsCollectorService.collectMarketHotEvents();
-            inserted += webNewsCollectorService.collectStrategicActionEvents();
-            int fullTextUpdated = webNewsCollectorService.enrichRecentBochaFullText(sinceMs, 80);
-            if (inserted > 0 || fullTextUpdated > 0) {
-                NewsEventExtractionService.Result extracted = eventExtractionService.extractPending(20);
-                log.info("[CompetitorPipeline] benchmark web supplement inserted={} fullTextUpdated={} extracted={}/{} batches={}",
-                        inserted, fullTextUpdated, extracted.success, extracted.processed, extracted.batchesRun);
-            } else {
-                log.info("[CompetitorPipeline] benchmark web supplement no new rows");
+        if (supplementWebNews) {
+            try {
+                int inserted = webNewsCollectorService.collectBenchmarkModelEvents();
+                inserted += webNewsCollectorService.collectMarketHotEvents();
+                inserted += webNewsCollectorService.collectStrategicActionEvents();
+                int fullTextUpdated = webNewsCollectorService.enrichRecentBochaFullText(sinceMs, 80);
+                if (inserted > 0 || fullTextUpdated > 0) {
+                    NewsEventExtractionService.Result extracted = eventExtractionService.extractPending(20);
+                    log.info("[CompetitorPipeline] benchmark web supplement inserted={} fullTextUpdated={} extracted={}/{} batches={}",
+                            inserted, fullTextUpdated, extracted.success, extracted.processed, extracted.batchesRun);
+                } else {
+                    log.info("[CompetitorPipeline] benchmark web supplement no new rows");
+                }
+            } catch (Exception e) {
+                log.warn("[CompetitorPipeline] benchmark web supplement failed ignored: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("[CompetitorPipeline] benchmark web supplement failed ignored: {}", e.getMessage());
+        } else {
+            log.info("[CompetitorPipeline] benchmark web supplement skipped by request");
         }
 
         // ===== Step 1: 按 event_type 拉事件 + 仅保留对标品牌 + 去重 + 按品牌排序 =====
         // v7: sales_milestone 走专路径 — 每品牌最新一条官号一手数据（不限 32h）
         // v8+: price_finance 聚合所有含价格信息的官号帖（含 launch 中带价格的）；launch 排除已进 price 的 id
         Map<String, List<WebSearchNews>> byEvent = new LinkedHashMap<>();
+        Map<String, FilterAudit> filterAudit = new LinkedHashMap<>();
         Set<Long> priceFinanceIds = new HashSet<>();
         int totalEvents = 0;
         // 第一遍：先处理 price_finance，记录已用 id；再处理 launch 时排除
@@ -173,14 +181,17 @@ public class CompetitorReportPipeline {
         for (String et : orderedTypes) {
             int limit = EVENT_TYPE_LIMITS.getOrDefault(et, 30);
             List<WebSearchNews> rows;
+            List<WebSearchNews> rawRows;
             if ("strategic_action".equals(et)) {
                 List<WebSearchNews> rawStrategic = newsMapper.findStrategicActionCandidates(strategicSinceMs, limit);
                 rows = rawStrategic.stream()
                         .filter(CompetitorReportPipeline::hasStrategicActionSignal)
                         .collect(Collectors.toList());
+                rawRows = rawStrategic;
                 log.info("[CompetitorPipeline] strategic_action raw={} filtered={} rows", rawStrategic.size(), rows.size());
             } else if ("sales_milestone".equals(et)) {
                 rows = newsMapper.findLatestAuthoritativeSalesByBrand();
+                rawRows = rows;
                 log.info("[CompetitorPipeline] sales_milestone 走权威路径，raw={} 条", rows.size());
             } else if ("price_finance".equals(et)) {
                 // v9: 只保留明确权益/金融政策，纯售价/上市定价不挪入价格金融。
@@ -188,27 +199,41 @@ public class CompetitorReportPipeline {
                 rows = rawFinance.stream()
                         .filter(CompetitorReportPipeline::hasStrongFinancePolicySignal)
                         .collect(Collectors.toList());
+                rawRows = rawFinance;
                 log.info("[CompetitorPipeline] price_finance strong-policy raw={} filtered={} 条",
                         rawFinance.size(), rows.size());
             } else if ("launch".equals(et)) {
                 // 产品动态板块：微博官号/官号优先；官号为空或不足时，网页补采作为兜底。
                 rows = newsMapper.findProductEventsOfficialFirst(sinceMs, limit).stream()
                         .filter(n -> !priceFinanceIds.contains(n.getId()))
-                        .filter(n -> !hasStrategicActionSignal(n))
                         .collect(Collectors.toList());
+                rawRows = rows;
                 log.info("[CompetitorPipeline] product dynamics official-first 排除已进 price_finance 后 raw={} 条", rows.size());
             } else if ("campaign".equals(et)) {
-                rows = newsMapper.findByEventTypeOfficialFirst(et, sinceMs, limit).stream()
-                        .filter(n -> !hasStrategicActionSignal(n))
-                        .collect(Collectors.toList());
+                rows = newsMapper.findByEventTypeOfficialFirst(et, sinceMs, limit);
+                rawRows = rows;
             } else {
                 rows = newsMapper.findByEventTypeOfficialFirst(et, sinceMs, limit);
+                rawRows = rows;
             }
             List<WebSearchNews> filtered = filterByBenchmarkBrands(rows, et);
             List<WebSearchNews> deduped = "sales_milestone".equals(et)
                     ? filtered
                     : dedupBySimilarity(dedupBySummary(filtered));
             List<WebSearchNews> sorted = sortByBrandThenImportance(deduped);
+            if (!"sales_milestone".equals(et)) {
+                FilterAudit audit = FilterAudit.builder()
+                        .rawCount(rawRows == null ? 0 : rawRows.size())
+                        .brandFilteredCount(filtered.size())
+                        .dedupedCount(deduped.size())
+                        .displayedCount(sorted.size())
+                        .samples(new ArrayList<>())
+                        .build();
+                addDroppedSamples(audit, rawRows, rows, "policy_or_pre_dedup_filter");
+                addDroppedSamples(audit, rows, filtered, "brand_not_in_benchmark");
+                addDroppedSamples(audit, filtered, deduped, "dedup_by_summary_or_similarity");
+                filterAudit.put(et, audit);
+            }
             byEvent.put(et, sorted);
             totalEvents += sorted.size();
             // 把 price_finance 渲染出的 id 记下，给 launch 阶段去重
@@ -219,7 +244,7 @@ public class CompetitorReportPipeline {
         log.info("[CompetitorPipeline] events (after dedup): launch={} price_finance={} campaign={} sales_milestone={} strategic_action={} (total={})",
                 byEvent.get("launch").size(), byEvent.get("price_finance").size(),
                 byEvent.get("campaign").size(), byEvent.get("sales_milestone").size(),
-                byEvent.get("strategic_action").size(), totalEvents);
+                byEvent.getOrDefault("strategic_action", Collections.emptyList()).size(), totalEvents);
 
         List<WebSearchNews> rawMarketHot = newsMapper.findMarketHotEvents(sinceMs, 40);
         List<WebSearchNews> marketHotEvents = dedupBySimilarity(dedupBySummary(
@@ -307,6 +332,7 @@ public class CompetitorReportPipeline {
         // ===== Step 4.5: 卡片要点 LLM 提炼（本次生成内缓存，失败降级到规则兜底）=====
         Map<Long, CardInsight> cardInsights = buildCardInsights(byEvent, marketHotEvents);
         log.info("[CompetitorPipeline] card insights={}", cardInsights.size());
+        enrichFilterAuditWithInsights(filterAudit, byEvent, cardInsights);
         Map<String, CardGroupSummary> groupSummaries = buildCardGroupSummaries(byEvent, cardInsights);
         log.info("[CompetitorPipeline] card group summaries={}", groupSummaries.size());
 
@@ -351,6 +377,7 @@ public class CompetitorReportPipeline {
                 .benchmarkModelCount(totalBenchmarkModels)
                 .benchmarkParamCount(totalBenchmarkParams)
                 .talkingPointsCount(talkingPoints.size())
+                .filterAudit(filterAudit)
                 .pushed(pushed)
                 .build();
     }
@@ -361,7 +388,6 @@ public class CompetitorReportPipeline {
         addCardInsightInputs(inputs, "launch", byEvent == null ? null : byEvent.get("launch"));
         addCardInsightInputs(inputs, "price_finance", byEvent == null ? null : byEvent.get("price_finance"));
         addCardInsightInputs(inputs, "campaign", byEvent == null ? null : byEvent.get("campaign"));
-        addCardInsightInputs(inputs, "strategic_action", byEvent == null ? null : byEvent.get("strategic_action"));
         addCardInsightInputs(inputs, "market_hot", marketHotEvents);
         if (inputs.isEmpty()) return Collections.emptyMap();
         try {
@@ -382,6 +408,91 @@ public class CompetitorReportPipeline {
             log.warn("[CompetitorPipeline] card group summary LLM failed ignored: {}", e.getMessage());
             return Collections.emptyMap();
         }
+    }
+
+    private static void addDroppedSamples(FilterAudit audit,
+                                          List<WebSearchNews> before,
+                                          List<WebSearchNews> after,
+                                          String reason) {
+        if (audit == null || before == null || before.isEmpty()) return;
+        Set<Long> kept = after == null ? Collections.emptySet() : after.stream()
+                .map(WebSearchNews::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        int added = 0;
+        for (WebSearchNews row : before) {
+            if (row == null || row.getId() == null || kept.contains(row.getId())) continue;
+            addAuditSample(audit, row, reason, null);
+            if (++added >= 4 || audit.getSamples().size() >= 12) break;
+        }
+    }
+
+    private static void enrichFilterAuditWithInsights(Map<String, FilterAudit> filterAudit,
+                                                      Map<String, List<WebSearchNews>> byEvent,
+                                                      Map<Long, CardInsight> insights) {
+        if (filterAudit == null || filterAudit.isEmpty() || byEvent == null) return;
+        for (Map.Entry<String, FilterAudit> entry : filterAudit.entrySet()) {
+            String eventType = entry.getKey();
+            FilterAudit audit = entry.getValue();
+            List<WebSearchNews> rows = byEvent.getOrDefault(eventType, Collections.emptyList());
+            int valuable = 0;
+            int displayed = 0;
+            for (WebSearchNews row : rows) {
+                boolean pass = isInsightValuableForDisplay(insights, row);
+                if (pass) {
+                    valuable++;
+                    displayed++;
+                } else if ("campaign".equals(eventType)) {
+                    displayed++;
+                    addAuditSample(audit, row, "campaign_displayed_without_llm_value", insightHideReason(insights, row));
+                } else if (!"launch".equals(eventType)) {
+                    addAuditSample(audit, row, "llm_low_value_or_empty", insightHideReason(insights, row));
+                } else {
+                    displayed++;
+                }
+            }
+            audit.setLlmValuableCount(valuable);
+            audit.setDisplayedCount(displayed);
+            log.info("[CompetitorPipeline] filter_audit {} raw={} brand={} deduped={} llm_valuable={} displayed={} samples={}",
+                    eventType, audit.getRawCount(), audit.getBrandFilteredCount(), audit.getDedupedCount(),
+                    audit.getLlmValuableCount(), audit.getDisplayedCount(), audit.getSamples().size());
+        }
+    }
+
+    private static boolean isInsightValuableForDisplay(Map<Long, CardInsight> insights, WebSearchNews row) {
+        if (row == null || row.getId() == null || insights == null) return false;
+        CardInsight insight = insights.get(row.getId());
+        if (insight == null || Boolean.FALSE.equals(insight.getValuable())) return false;
+        if (insight.getValueScore() != null && insight.getValueScore() < 6.0d) return false;
+        if (insight.getConfidence() != null && insight.getConfidence() < 0.35d) return false;
+        boolean hasPoint = insight.getPoints() != null && !insight.getPoints().isEmpty();
+        boolean hasDetail = insight.getDetailHighlight() != null && !insight.getDetailHighlight().trim().isEmpty();
+        return hasPoint || hasDetail;
+    }
+
+    private static String insightHideReason(Map<Long, CardInsight> insights, WebSearchNews row) {
+        if (row == null || row.getId() == null || insights == null) return "no_insight";
+        CardInsight insight = insights.get(row.getId());
+        if (insight == null) return "no_insight";
+        if (insight.getHideReason() != null && !insight.getHideReason().trim().isEmpty()) {
+            return insight.getHideReason().trim();
+        }
+        if (Boolean.FALSE.equals(insight.getValuable())) return "llm_marked_not_valuable";
+        if (insight.getValueScore() != null && insight.getValueScore() < 6.0d) return "value_score_below_6";
+        if (insight.getConfidence() != null && insight.getConfidence() < 0.35d) return "confidence_below_0_35";
+        return "no_points_or_detail";
+    }
+
+    private static void addAuditSample(FilterAudit audit, WebSearchNews row, String reason, String detail) {
+        if (audit == null || row == null || audit.getSamples() == null || audit.getSamples().size() >= 12) return;
+        audit.getSamples().add(FilterSample.builder()
+                .id(row.getId())
+                .brand(row.getBrandName())
+                .sourceTool(row.getSourceTool())
+                .title(truncate(firstNonBlank(row.getEventSummary(), row.getTitle(), row.getContent()), 80))
+                .reason(reason)
+                .detail(detail)
+                .build());
     }
 
     private static void addCardInsightInputs(Map<Long, CardInsightInput> out,
@@ -789,6 +900,36 @@ public class CompetitorReportPipeline {
 
     private static String safe(String s) { return s == null ? "" : s; }
 
+    private static String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) return value.trim();
+        }
+        return "";
+    }
+
+    @Data
+    @Builder
+    public static class FilterAudit {
+        private int rawCount;
+        private int brandFilteredCount;
+        private int dedupedCount;
+        private int llmValuableCount;
+        private int displayedCount;
+        private List<FilterSample> samples;
+    }
+
+    @Data
+    @Builder
+    public static class FilterSample {
+        private Long id;
+        private String brand;
+        private String sourceTool;
+        private String title;
+        private String reason;
+        private String detail;
+    }
+
     @Data
     @Builder
     public static class Result {
@@ -804,6 +945,7 @@ public class CompetitorReportPipeline {
         private int benchmarkModelCount;
         private int benchmarkParamCount;
         private int talkingPointsCount;
+        private Map<String, FilterAudit> filterAudit;
         private boolean pushed;
     }
 }
