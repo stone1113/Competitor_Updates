@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaCrawler - BettaFish 指挥中心</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1f2e,#252b3b);padding:20px 32px;border-bottom:1px solid #2d333b;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:600;color:#58a6ff}
+.header .status{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.status-dot.idle{background:#8b949e}
+.status-dot.running{background:#3fb950;animation:pulse 1.5s infinite}
+.status-dot.error{background:#f85149}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:20px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid #21262d;font-size:14px;font-weight:600;color:#c9d1d9;display:flex;align-items:center;justify-content:space-between}
+.card-body{padding:18px}
+label{display:block;font-size:12px;color:#8b949e;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+select,input[type=text]{width:100%;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e1e4e8;font-size:14px;outline:none;transition:border-color .2s}
+select:focus,input[type=text]:focus{border-color:#58a6ff}
+.form-group{margin-bottom:16px}
+.keywords-section{margin-bottom:16px}
+.keywords-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.keywords-header label{margin-bottom:0}
+.btn-select-all{background:none;border:1px solid #30363d;color:#58a6ff;padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer;transition:all .2s}
+.btn-select-all:hover{background:#58a6ff;color:#fff}
+.keyword-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;min-height:32px}
+.keyword-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;background:#1c2333;border:1px solid #30363d;border-radius:16px;font-size:13px;cursor:pointer;transition:all .2s;user-select:none}
+.keyword-chip:hover{border-color:#58a6ff}
+.keyword-chip.selected{background:#1a3a5c;border-color:#58a6ff;color:#58a6ff}
+.keyword-chip input[type=checkbox]{display:none}
+.keyword-chip .check{width:14px;height:14px;border:1.5px solid #484f58;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s}
+.keyword-chip.selected .check{background:#58a6ff;border-color:#58a6ff;color:#fff}
+.custom-keywords{margin-top:8px}
+.custom-keywords input{font-size:13px}
+.actions{display:flex;gap:10px;margin-top:20px}
+.btn{padding:10px 20px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;flex:1}
+.btn-start{background:#238636;color:#fff}
+.btn-start:hover{background:#2ea043}
+.btn-start:disabled{background:#1a2e1f;color:#3fb95080;cursor:not-allowed}
+.btn-stop{background:#da3633;color:#fff}
+.btn-stop:hover{background:#f85149}
+.btn-stop:disabled{background:#2d1214;color:#f8514980;cursor:not-allowed}
+.log-panel{display:flex;flex-direction:column;height:calc(100vh - 140px);min-height:500px}
+.log-panel .card{flex:1;display:flex;flex-direction:column}
+.log-panel .card-body{flex:1;overflow:hidden;padding:0}
+.log-container{height:100%;overflow-y:auto;padding:12px 16px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.7}
+.log-container::-webkit-scrollbar{width:6px}
+.log-container::-webkit-scrollbar-track{background:transparent}
+.log-container::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+.log-line{padding:1px 0;word-break:break-all}
+.log-line .time{color:#484f58;margin-right:8px}
+.log-line.info{color:#8b949e}
+.log-line.success{color:#3fb950}
+.log-line.warning{color:#d29922}
+.log-line.error{color:#f85149}
+.log-count{font-size:12px;color:#484f58;font-weight:400}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid #21262d}
+.stat{text-align:center}
+.stat .val{font-size:20px;font-weight:700;color:#58a6ff}
+.stat .lbl{font-size:11px;color:#484f58;margin-top:2px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.log-panel{height:400px;min-height:300px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>MediaCrawler - BettaFish 指挥中心</h1>
+  <div class="status">
+    <span class="status-dot idle" id="statusDot"></span>
+    <span id="statusText">空闲</span>
+  </div>
+</div>
+<div class="container">
+<div class="grid">
+  <div>
+    <div class="card">
+      <div class="card-header">爬虫配置</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>平台</label>
+          <select id="platform">
+            <option value="xhs">小红书</option>
+            <option value="dy">抖音</option>
+            <option value="ks">快手</option>
+            <option value="bili">B站</option>
+            <option value="wb">微博</option>
+            <option value="tieba">贴吧</option>
+            <option value="zhihu">知乎</option>
+          </select>
+        </div>
+        <div class="keywords-section">
+          <div class="keywords-header">
+            <label>BettaFish 关键词</label>
+            <button class="btn-select-all" id="btnSelectAll" onclick="toggleSelectAll()">全选</button>
+          </div>
+          <div class="keyword-list" id="keywordList">
+            <span style="color:#484f58;font-size:13px">加载中...</span>
+          </div>
+          <div class="custom-keywords">
+            <label>自定义关键词（逗号分隔）</label>
+            <input type="text" id="customKeywords" placeholder="关键词1, 关键词2, ...">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>登录方式</label>
+          <select id="loginType">
+            <option value="qrcode">扫码登录</option>
+            <option value="cookie">Cookie 登录</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>爬取模式</label>
+          <select id="crawlerType">
+            <option value="search">搜索模式</option>
+            <option value="detail">详情模式</option>
+            <option value="creator">创作者模式</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>存储方式</label>
+          <select id="saveOption">
+            <option value="postgres" selected>PostgreSQL 数据库</option>
+            <option value="jsonl">JSONL 文件</option>
+            <option value="json">JSON 文件</option>
+            <option value="csv">CSV 文件</option>
+            <option value="excel">Excel 文件</option>
+            <option value="sqlite">SQLite 数据库</option>
+            <option value="db">MySQL 数据库</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn btn-start" id="btnStart" onclick="startCrawler()">启动爬虫</button>
+          <button class="btn btn-stop" id="btnStop" onclick="stopCrawler()" disabled>停止</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="val" id="statNotes">-</div><div class="lbl">笔记数</div></div>
+          <div class="stat"><div class="val" id="statComments">-</div><div class="lbl">评论数</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="log-panel">
+    <div class="card">
+      <div class="card-header">
+        实时日志
+        <span class="log-count" id="logCount">0 条</span>
+      </div>
+      <div class="card-body">
+        <div class="log-container" id="logContainer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const API = '';
+let allSelected = false;
+let bfKeywords = [];
+let ws = null;
+let logLines = 0;
+let noteCount = 0;
+let commentCount = 0;
+
+async function loadKeywords() {
+  try {
+    const res = await fetch(`${API}/api/config/keywords`);
+    const data = await res.json();
+    bfKeywords = data.keywords || [];
+    renderKeywords();
+  } catch (e) {
+    document.getElementById('keywordList').innerHTML = '<span style="color:#f85149;font-size:13px">加载关键词失败</span>';
+  }
+}
+
+function renderKeywords() {
+  const container = document.getElementById('keywordList');
+  if (!bfKeywords.length) {
+    container.innerHTML = '<span style="color:#484f58;font-size:13px">暂无配置关键词</span>';
+    return;
+  }
+  container.innerHTML = bfKeywords.map((kw, i) => `
+    <div class="keyword-chip${allSelected ? ' selected' : ''}" onclick="toggleKeyword(this, ${i})">
+      <span class="check">${allSelected ? '&#10003;' : ''}</span>
+      <span>${kw}</span>
+      <input type="checkbox" data-kw="${kw}" ${allSelected ? 'checked' : ''}>
+    </div>
+  `).join('');
+}
+
+function toggleKeyword(el, idx) {
+  const cb = el.querySelector('input');
+  cb.checked = !cb.checked;
+  el.classList.toggle('selected', cb.checked);
+  el.querySelector('.check').innerHTML = cb.checked ? '&#10003;' : '';
+  updateSelectAllBtn();
+}
+
+function toggleSelectAll() {
+  const chips = document.querySelectorAll('.keyword-chip');
+  const checkboxes = document.querySelectorAll('.keyword-chip input');
+  const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+  allSelected = anyUnchecked;
+  checkboxes.forEach(cb => cb.checked = allSelected);
+  chips.forEach(chip => {
+    chip.classList.toggle('selected', allSelected);
+    chip.querySelector('.check').innerHTML = allSelected ? '&#10003;' : '';
+  });
+  updateSelectAllBtn();
+}
+
+function updateSelectAllBtn() {
+  const checkboxes = document.querySelectorAll('.keyword-chip input');
+  const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+  document.getElementById('btnSelectAll').textContent = allChecked ? '取消全选' : '全选';
+}
+
+function getSelectedKeywords() {
+  const selected = [];
+  document.querySelectorAll('.keyword-chip input:checked').forEach(cb => {
+    selected.push(cb.dataset.kw);
+  });
+  const custom = document.getElementById('customKeywords').value.trim();
+  if (custom) {
+    custom.split(',').forEach(k => {
+      k = k.trim();
+      if (k && !selected.includes(k)) selected.push(k);
+    });
+  }
+  return selected.join(',');
+}
+
+async function startCrawler() {
+  const keywords = getSelectedKeywords();
+  if (!keywords) {
+    alert('请至少选择一个关键词或输入自定义关键词。');
+    return;
+  }
+  const body = {
+    platform: document.getElementById('platform').value,
+    login_type: document.getElementById('loginType').value,
+    crawler_type: document.getElementById('crawlerType').value,
+    keywords: keywords,
+    save_option: document.getElementById('saveOption').value,
+    headless: false,
+    enable_comments: true,
+  };
+  try {
+    document.getElementById('btnStart').disabled = true;
+    const res = await fetch(`${API}/api/crawler/start`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.detail || '启动爬虫失败');
+      document.getElementById('btnStart').disabled = false;
+      return;
+    }
+    setStatus('running');
+    connectWS();
+  } catch (e) {
+    alert('错误: ' + e.message);
+    document.getElementById('btnStart').disabled = false;
+  }
+}
+
+async function stopCrawler() {
+  try {
+    document.getElementById('btnStop').disabled = true;
+    await fetch(`${API}/api/crawler/stop`, {method: 'POST'});
+    setStatus('idle');
+  } catch (e) {
+    alert('错误: ' + e.message);
+  }
+}
+
+function setStatus(status) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot ' + status;
+  const statusMap = {idle: '空闲', running: '运行中', stopping: '停止中', error: '错误'};
+  text.textContent = statusMap[status] || status;
+  document.getElementById('btnStart').disabled = (status === 'running');
+  document.getElementById('btnStop').disabled = (status !== 'running');
+}
+
+function connectWS() {
+  if (ws && ws.readyState <= 1) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/api/ws/logs`);
+  ws.onmessage = (e) => {
+    if (e.data === 'ping') { ws.send('pong'); return; }
+    try {
+      const log = JSON.parse(e.data);
+      appendLog(log);
+    } catch {}
+  };
+  ws.onclose = () => { setTimeout(() => { if (document.getElementById('btnStart').disabled) connectWS(); }, 2000); };
+}
+
+function appendLog(log) {
+  const container = document.getElementById('logContainer');
+  const div = document.createElement('div');
+  div.className = 'log-line ' + (log.level || 'info');
+  div.innerHTML = `<span class="time">${log.timestamp || ''}</span>${escapeHtml(log.message || '')}`;
+  container.appendChild(div);
+  logLines++;
+  document.getElementById('logCount').textContent = logLines + ' 条';
+  // Auto scroll
+  container.scrollTop = container.scrollHeight;
+  // Parse stats from log
+  const msg = log.message || '';
+  if (msg.includes('xhs note:') || msg.includes('store_content')) noteCount++;
+  if (msg.includes('comment:') || msg.includes('store_comment')) commentCount++;
+  document.getElementById('statNotes').textContent = noteCount || '-';
+  document.getElementById('statComments').textContent = commentCount || '-';
+  // Detect completion
+  if (msg.includes('Crawler completed') || msg.includes('exited with code')) {
+    setStatus('idle');
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Poll status
+async function pollStatus() {
+  try {
+    const res = await fetch(`${API}/api/crawler/status`);
+    const data = await res.json();
+    setStatus(data.status || 'idle');
+    if (data.status === 'running') connectWS();
+  } catch {}
+}
+
+// Init
+loadKeywords();
+pollStatus();
+setInterval(pollStatus, 5000);
+</script>
+</body>
+</html>

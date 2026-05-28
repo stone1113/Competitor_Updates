@@ -1,0 +1,6 @@
+# Wrapper service dependencies (mediacrawler/requirements.txt covers the crawler itself)
+# fastapi/uvicorn already in mediacrawler/requirements.txt; pinned here for clarity
+fastapi==0.110.2
+uvicorn[standard]==0.29.0
+pydantic==2.5.2
+httpx==0.28.1

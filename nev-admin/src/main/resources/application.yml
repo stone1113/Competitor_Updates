@@ -1,0 +1,131 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: nev-insight
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:nev_insight}?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: nev-insight-ingest
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      missing-topics-fatal: false
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.nevinsight.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# NEV-Insight custom config
+nevinsight:
+  brand:
+    name: ${BRAND_NAME:猛士汽车}
+    db-name: ${BRAND_DB_NAME:猛士}
+    # search-keywords / competitor-brands / model-benchmark-rules
+    # 中文 key 在 YAML 绑定中有兼容性问题，改为 Java @PostConstruct 初始化默认值
+    # 见 BrandConfigProperties.initDefaults()
+  dashscope:
+    api-key: ${DASHSCOPE_API_KEY:}
+    report-model: ${DASHSCOPE_REPORT_MODEL:qwen-max}
+    screening-model: ${DASHSCOPE_SCREENING_MODEL:qwen-turbo}
+  milvus:
+    host: ${MILVUS_HOST:localhost}
+    port: ${MILVUS_PORT:19530}
+  feishu:
+    test-webhook-url: ${FEISHU_TEST_WEBHOOK_URL:}
+    prod-webhook-url: ${FEISHU_PROD_WEBHOOK_URL:}
+    competitor-webhook-url: ${FEISHU_COMPETITOR_WEBHOOK_URL:}
+    app-id: ${FEISHU_APP_ID:}
+    app-secret: ${FEISHU_APP_SECRET:}
+    # v9.7 H5 飞书 OAuth 登录配置
+    oauth-redirect: ${FEISHU_OAUTH_REDIRECT:http://localhost:3080/h5/benchmark}
+    require-login: ${FEISHU_REQUIRE_LOGIN:false}
+  ragflow:
+    base-url: ${RAGFLOW_BASE_URL:http://host.docker.internal:9380}
+    api-key: ${RAGFLOW_API_KEY:}
+    kb-id: ${RAGFLOW_KB_ID:}
+    default-top-k: 10
+    similarity-threshold: 0.2
+    keyword-weight: 0.3
+    # iframe 嵌入 / 飞书按钮跳转用的 UI 地址（UI 在 port 80）
+    ui-base-url: ${RAGFLOW_UI_BASE_URL:http://localhost}
+    # RAGFlow 嵌入参数 — shared_id（chat dialog_id 或 agent canvas id）+ beta auth + from
+    deep-analysis-shared-id: ${RAGFLOW_DEEP_ANALYSIS_SHARED_ID:}
+    deep-analysis-beta-token: ${RAGFLOW_DEEP_ANALYSIS_BETA_TOKEN:}
+    deep-analysis-from: ${RAGFLOW_DEEP_ANALYSIS_FROM:agent}
+  competitor:
+    cron: ${COMPETITOR_REPORT_CRON:0 30 8 * * ?}
+    autohome-sync-cron: ${AUTOHOME_SYNC_CRON:0 0 3 ? * MON}
+  frontend:
+    # 飞书卡片按钮跳转的 m-monitor 前端地址
+    base-url: ${FRONTEND_BASE_URL:http://localhost:3080}
+  bocha:
+    api-key: ${BOCHA_API_KEY:}
+    base-url: ${BOCHA_BASE_URL:https://api.bocha.cn/v1/ai-search}
+  crawler:
+    enabled: ${CRAWLER_ENABLED:true}
+    # 本地运行时，Java 容器经 host.docker.internal 调用 Mac 上的爬虫服务
+    base-url: ${CRAWLER_BASE_URL:http://host.docker.internal:8091}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    default-max-notes: 20
+    poll-interval-ms: 10000
+    poll-max-duration-ms: 3600000
+    # 串行轮询定时（默认 02:00 每天；启用后才会跑）
+    schedule-enabled: ${CRAWLER_SCHEDULE_ENABLED:false}
+    schedule-cron: ${CRAWLER_SCHEDULE_CRON:0 0 2 * * ?}
+    per-task-wait-ms: 1800000
+    # 临时屏蔽的平台（逗号分隔），被屏蔽的平台前端会隐藏，后端拒绝触发
+    disabled-platforms: ${CRAWLER_DISABLED_PLATFORMS:xhs}
+    # 本品牌名称：一键全量爬取 + 定时任务会优先爬取此品牌
+    primary-brand: ${CRAWLER_PRIMARY_BRAND:猛士}
+  report:
+    base-dir: ${REPORT_BASE_DIR:/data/reports}
+
+# Logging
+logging:
+  level:
+    com.nevinsight: DEBUG
+    com.baomidou.mybatisplus: INFO
+  file:
+    name: logs/nev-insight.log
+  logback:
+    rollingpolicy:
+      max-history: 30
+      max-file-size: 100MB
+
+# Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

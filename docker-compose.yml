@@ -1,0 +1,133 @@
+services:
+  # ---- MySQL (模拟 TDSQL) ----
+  mysql:
+    image: mysql:8.0
+    container_name: nev-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: nev123456
+      MYSQL_DATABASE: nev_insight
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./nev-admin/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pnev123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nev-net
+
+  # ---- Redis ----
+  redis:
+    image: redis:7-alpine
+    container_name: nev-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - nev-net
+
+  # ---- Kafka (Apache Kafka KRaft mode) ----
+  kafka:
+    image: apache/kafka:latest
+    container_name: nev-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: nev-insight-kafka-cluster-001
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - nev-net
+
+  # ---- NEV-Insight Application ----
+  app:
+    build: .
+    container_name: nev-insight
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: nev_insight
+      DB_USER: root
+      DB_PASSWORD: nev123456
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_SERVERS: kafka:9092
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-sk-placeholder}
+      BOCHA_API_KEY: ${BOCHA_API_KEY:-}
+      BOCHA_BASE_URL: ${BOCHA_BASE_URL:-https://api.bocha.cn/v1/ai-search}
+      JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true"
+      FEISHU_TEST_WEBHOOK_URL: ${FEISHU_TEST_WEBHOOK_URL:-}
+      FEISHU_PROD_WEBHOOK_URL: ${FEISHU_PROD_WEBHOOK_URL:-}
+      FEISHU_COMPETITOR_WEBHOOK_URL: ${FEISHU_COMPETITOR_WEBHOOK_URL:-}
+      FEISHU_APP_ID: ${FEISHU_APP_ID:-}
+      FEISHU_APP_SECRET: ${FEISHU_APP_SECRET:-}
+      FEISHU_OAUTH_REDIRECT: ${FEISHU_OAUTH_REDIRECT:-http://localhost:3080/h5/benchmark}
+      FEISHU_REQUIRE_LOGIN: ${FEISHU_REQUIRE_LOGIN:-false}
+      RAGFLOW_BASE_URL: ${RAGFLOW_BASE_URL:-http://host.docker.internal:9380}
+      RAGFLOW_UI_BASE_URL: ${RAGFLOW_UI_BASE_URL:-http://localhost}
+      RAGFLOW_API_KEY: ${RAGFLOW_API_KEY:-}
+      RAGFLOW_KB_ID: ${RAGFLOW_KB_ID:-}
+      RAGFLOW_DEEP_ANALYSIS_SHARED_ID: ${RAGFLOW_DEEP_ANALYSIS_SHARED_ID:-}
+      RAGFLOW_DEEP_ANALYSIS_BETA_TOKEN: ${RAGFLOW_DEEP_ANALYSIS_BETA_TOKEN:-}
+      RAGFLOW_DEEP_ANALYSIS_FROM: ${RAGFLOW_DEEP_ANALYSIS_FROM:-agent}
+      NEVINSIGHT_RAGFLOW_DEEP_BENCHMARK_AGENT_ID: ${NEVINSIGHT_RAGFLOW_DEEP_BENCHMARK_AGENT_ID:-}
+      NEVINSIGHT_RAGFLOW_DEEP_BENCHMARK_CHAT_ID: ${NEVINSIGHT_RAGFLOW_DEEP_BENCHMARK_CHAT_ID:-}
+      NEVINSIGHT_RAGFLOW_FOLLOWUP_CHAT_ID: ${NEVINSIGHT_RAGFLOW_FOLLOWUP_CHAT_ID:-}
+      COMPETITOR_REPORT_CRON: ${COMPETITOR_REPORT_CRON:-0 30 8 * * ?}
+      AUTOHOME_SYNC_CRON: ${AUTOHOME_SYNC_CRON:-0 0 3 ? * MON}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3080}
+    networks:
+      - nev-net
+
+  # ---- Admin UI (Nginx) ----
+  ui:
+    build: ./nev-admin-ui
+    container_name: nev-ui
+    depends_on:
+      - app
+    ports:
+      - "3080:80"
+    networks:
+      - nev-net
+
+  # ---- Crawler Service ----
+  # 本地运行（方案 B）：不在 Docker 内跑，需在 Mac 上启动：
+  #   ./crawler-service/start-local.sh
+  # Java 容器通过 host.docker.internal:8091 调用本地服务。
+  # 改回容器化方案见 docker-compose.crawler.yml.bak（如有）。
+
+volumes:
+  mysql-data:
+
+networks:
+  nev-net:
+    driver: bridge

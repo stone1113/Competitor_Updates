@@ -1,0 +1,119 @@
+/*
+ * NEV-Insight Design System Tokens
+ * Aesthetic: Editorial / FT-like / Stripe Press
+ * Theme: Light, warm cream paper
+ */
+
+:root {
+  /* ===== Color: Surfaces ===== */
+  --bg: #fbf9f4;              /* warm cream paper */
+  --bg-elevated: #f5f2ea;     /* slight depth, e.g. sidebar */
+  --surface: #ffffff;         /* cards, drawers, dialogs */
+  --surface-hover: #fdf6e8;   /* row hover, soft amber wash */
+  --surface-sunk: #f0ece1;    /* inset / disabled */
+
+  /* ===== Color: Ink ===== */
+  --ink: #171614;             /* primary text */
+  --ink-muted: #56524a;       /* secondary text */
+  --ink-subtle: #8a857b;      /* tertiary, captions */
+  --ink-inverse: #fbf9f4;     /* text on dark accent backgrounds */
+
+  /* ===== Color: Lines ===== */
+  --hairline: #e8e3d8;        /* 1px subtle borders */
+  --hairline-strong: #d4ccba; /* heavier dividers */
+  --rule: #171614;            /* editorial rule (under headings) */
+
+  /* ===== Color: Accent ===== */
+  --accent: #c0392b;          /* oxblood — the ONE color */
+  --accent-hover: #a8311f;
+  --accent-soft: #f6e3df;     /* tag/wash background */
+
+  /* ===== Color: Semantic (sentiment data) ===== */
+  --positive: #2d6a4f;
+  --positive-soft: #e3eee8;
+  --negative: #c0392b;        /* same as accent for cohesion */
+  --negative-soft: #f6e3df;
+  --alert: #cc8b1a;
+  --alert-soft: #f7eed5;
+  --neutral: #56524a;
+  --neutral-soft: #ece8de;
+
+  /* ===== Typography: Families ===== */
+  --font-display: 'Fraunces', 'Songti SC', 'STSong', Georgia, serif;
+  --font-body: 'General Sans', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+
+  /* ===== Typography: Sizes ===== */
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-md:   17px;
+  --text-lg:   20px;
+  --text-xl:   26px;
+  --text-2xl:  34px;
+  --text-3xl:  44px;
+  --text-4xl:  60px;
+  --text-5xl:  84px;
+
+  /* ===== Typography: Weights & Tracking ===== */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-normal: 1.55;
+  --leading-loose: 1.75;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.12em;     /* uppercase eyebrows */
+
+  /* ===== Spacing (4px base) ===== */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ===== Radius (subtle, editorial doesn't over-round) ===== */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* ===== Shadows (editorial = almost flat, lean on hairlines) ===== */
+  --shadow-sm: 0 1px 0 0 var(--hairline);
+  --shadow-md: 0 4px 12px -6px rgba(23, 22, 20, 0.08);
+  --shadow-lg: 0 16px 40px -16px rgba(23, 22, 20, 0.18);
+
+  /* ===== Layout ===== */
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 64px;
+  --header-height: 64px;
+  --content-max: 1440px;
+
+  /* ===== Motion ===== */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
+
+  /* ===== Z-index ===== */
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-drawer: 200;
+  --z-dialog: 300;
+  --z-toast: 400;
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.nevinsight</groupId>
+        <artifactId>m-monitor</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>nev-scheduler</artifactId>
+    <name>NEV Scheduler</name>
+    <description>任务调度：XXL-JOB处理器</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.nevinsight</groupId>
+            <artifactId>nev-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nevinsight</groupId>
+            <artifactId>nev-collector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xuxueli</groupId>
+            <artifactId>xxl-job-core</artifactId>
+        </dependency>
+    </dependencies>
+</project>

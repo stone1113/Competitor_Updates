@@ -1,0 +1,86 @@
+### Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Node.js (前端) ###
+nev-admin-ui/node_modules/
+nev-admin-ui/dist/
+nev-admin-ui/.vite/
+nev-admin-ui/.cache/
+nev-admin-ui/npm-debug.log*
+
+### Python (crawler-service + mcp-server) ###
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.venv/
+**/.venv-*/
+**/venv/
+*.egg-info/
+.pytest_cache/
+
+### MCP server ###
+mcp-server/mcp.log
+mcp-server/nohup.out
+
+### Crawler service ###
+crawler-service/*.log
+crawler-service/keepalive.log
+crawler-service/data/
+crawler-service/.qrcodes/
+crawler-service/browser_data/
+
+### IDE ###
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.cursor/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans / Gradle ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Mac OS / Windows ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+logs/
+*.log
+
+### Environment / Secrets ###
+.env
+.env.*
+!.env.example
+
+### 开发临时产物（不应入库）###
+.tmp/
+.superpowers/
+.claude/
+/h5-*.png
+/h5-*.jpg
+/screenshot-*.png
+*-before.png
+*-after.png
+*-after-*.png
+
+### docs 临时草稿 ###
+docs/.DS_Store
+docs/superpowers/

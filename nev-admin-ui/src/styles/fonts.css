@@ -1,0 +1,8 @@
+/* Fraunces - 可变衬线，display 用 */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&display=swap');
+
+/* JetBrains Mono - 数据/数字用 */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* General Sans - 正文/UI 用，从 Fontshare CDN */
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');

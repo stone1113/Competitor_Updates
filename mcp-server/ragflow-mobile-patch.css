@@ -1,0 +1,65 @@
+/* RAGFlow share page mobile optimization
+ * 由 m-monitor 注入到 RAGFlow 容器 /ragflow/web/dist/assets/css/
+ * 通过 patch index.html 加载
+ */
+
+/* 仅 mobile (≤768px) 应用 — 桌面端不受影响 */
+@media (max-width: 768px) {
+
+  /* 1. 顶部 EmbedContainer header（标题 + 刷新按钮）压缩高度 */
+  body header,
+  body [class*="EmbedContainer"] header,
+  body div[class*="EmbedContainer"] > div:first-child {
+    min-height: 36px !important;
+    padding: 4px 8px !important;
+  }
+  body header h1,
+  body header span,
+  body [class*="EmbedContainer"] h1 {
+    font-size: 13px !important;
+    margin: 0 !important;
+  }
+
+  /* 2. 主聊天区取消上下 padding、给最大空间 */
+  body div[class*="h-\\[90vh\\]"],
+  body .h-\\[90vh\\] {
+    height: calc(100vh - 36px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 3. 消息容器全宽 + 紧凑 padding */
+  body .md\\:w-5\\/6 {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body .p-2\\.5 { padding: 6px !important; }
+  body .m-3 { margin: 4px !important; }
+  body .md\\:mb-8 { margin-bottom: 4px !important; }
+
+  /* 4. 输入区域更紧凑 */
+  body textarea {
+    min-height: 36px !important;
+    font-size: 14px !important;
+  }
+  /* 输入框下方工具栏（附件/语音/发送）变窄 */
+  body [class*="MessageInput"] > div:last-child,
+  body footer { padding: 4px 6px !important; }
+
+  /* 5. 消息气泡内边距 */
+  body [class*="MessageItem"],
+  body [class*="message-item"] {
+    padding: 6px 8px !important;
+    margin: 4px 0 !important;
+  }
+  body [class*="MessageItem"] p {
+    margin: 4px 0 !important;
+    line-height: 1.55 !important;
+  }
+
+  /* 6. 隐藏头像（双保险 — URL visible_avatar=1 + CSS） */
+  body [class*="avatar"],
+  body img[class*="Avatar"] {
+    display: none !important;
+  }
+}
