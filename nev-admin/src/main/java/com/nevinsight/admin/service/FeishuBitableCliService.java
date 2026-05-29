@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -53,21 +55,35 @@ public class FeishuBitableCliService {
             return new WriteResult(false, null, "FEISHU_CLI_PATH/FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID 未配置");
         }
 
-        List<String> command = buildCommand(objectMapper.writeValueAsString(buildFields(event)));
+        Path tempDir = Path.of("logs");
+        Files.createDirectories(tempDir);
+        Path jsonFile = Files.createTempFile(tempDir, "nev-feedback-bitable-", ".json");
+        try {
+            Files.writeString(jsonFile,
+                    objectMapper.writeValueAsString(buildFields(event)),
+                    StandardCharsets.UTF_8);
+            List<String> command = buildCommand("@" + jsonFile.toString());
 
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        boolean finished = process.waitFor(cliTimeoutMs, TimeUnit.MILLISECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            return new WriteResult(false, null, "飞书 CLI 写表超时");
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            boolean finished = process.waitFor(cliTimeoutMs, TimeUnit.MILLISECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return new WriteResult(false, null, "飞书 CLI 写表超时");
+            }
+            String output = readOutput(process);
+            if (process.exitValue() != 0) {
+                return new WriteResult(false, null, output);
+            }
+            return new WriteResult(true, extractRecordId(output), output);
+        } finally {
+            try {
+                Files.deleteIfExists(jsonFile);
+            } catch (Exception e) {
+                log.debug("[FeishuBitableCli] delete temp json failed: {}", jsonFile, e);
+            }
         }
-        String output = readOutput(process);
-        if (process.exitValue() != 0) {
-            return new WriteResult(false, null, output);
-        }
-        return new WriteResult(true, extractRecordId(output), output);
     }
 
     Map<String, Object> buildFields(DailyReportFeedbackEvent event) {
@@ -84,7 +100,7 @@ public class FeishuBitableCliService {
         return fields;
     }
 
-    List<String> buildCommand(String fieldsJson) {
+    List<String> buildCommand(String fieldsJsonOrFileRef) {
         List<String> command = new ArrayList<>();
         String normalized = cliPath == null ? "" : cliPath.trim().toLowerCase();
         if (normalized.endsWith(".cmd") || normalized.endsWith(".bat")) {
@@ -99,7 +115,7 @@ public class FeishuBitableCliService {
         command.add("--table-id");
         command.add(bitableTableId);
         command.add("--json");
-        command.add(fieldsJson);
+        command.add(fieldsJsonOrFileRef);
         command.add("--as");
         command.add(cliAs);
         return command;

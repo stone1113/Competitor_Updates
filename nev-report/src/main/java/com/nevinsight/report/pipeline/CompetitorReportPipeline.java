@@ -90,9 +90,6 @@ public class CompetitorReportPipeline {
     private final CardInsightAgent cardInsightAgent;
     private final CardGroupSummaryAgent cardGroupSummaryAgent;
 
-    @Value("${nevinsight.feishu.competitor-webhook-url:}")
-    private String competitorWebhook;
-
     /** 飞书按钮跳转的 m-monitor 前端深度对标页 URL */
     @Value("${nevinsight.frontend.base-url:http://localhost:3080}")
     private String frontendBaseUrl;
@@ -355,11 +352,7 @@ public class CompetitorReportPipeline {
 
         boolean pushed = false;
         if (push) {
-            if (competitorWebhook == null || competitorWebhook.isEmpty()) {
-                log.warn("[CompetitorPipeline] FEISHU_COMPETITOR_WEBHOOK_URL not set; skip push");
-            } else {
-                pushed = feishuPushService.sendCard(cardJson, competitorWebhook);
-            }
+            pushed = feishuPushService.sendCompetitorCardByAppBot(cardJson);
         }
         log.info("[CompetitorPipeline] done push={} success={}", push, pushed);
 

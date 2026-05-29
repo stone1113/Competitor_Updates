@@ -66,6 +66,8 @@ nevinsight:
     competitor-webhook-url: ${FEISHU_COMPETITOR_WEBHOOK_URL:}
     app-id: ${FEISHU_APP_ID:}
     app-secret: ${FEISHU_APP_SECRET:}
+    competitor-chat-id: ${FEISHU_COMPETITOR_CHAT_ID:}
+    card-long-connection-enabled: ${FEISHU_CARD_LONG_CONNECTION_ENABLED:true}
     # v9.7 H5 飞书 OAuth 登录配置
     oauth-redirect: ${FEISHU_OAUTH_REDIRECT:http://localhost:3080/h5/benchmark}
     require-login: ${FEISHU_REQUIRE_LOGIN:false}
