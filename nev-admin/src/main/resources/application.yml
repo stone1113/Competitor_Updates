@@ -69,6 +69,14 @@ nevinsight:
     # v9.7 H5 飞书 OAuth 登录配置
     oauth-redirect: ${FEISHU_OAUTH_REDIRECT:http://localhost:3080/h5/benchmark}
     require-login: ${FEISHU_REQUIRE_LOGIN:false}
+    # 卡片内文字反馈按钮回调；token 为空时仅用于本地调试，不校验。
+    card-verification-token: ${FEISHU_CARD_VERIFICATION_TOKEN:}
+    # 飞书 CLI 写入多维表格。CLI 需先执行 lark-cli auth login 完成授权。
+    cli-path: ${FEISHU_CLI_PATH:lark-cli.cmd}
+    cli-as: ${FEISHU_CLI_AS:user}
+    bitable-app-token: ${FEISHU_BITABLE_APP_TOKEN:}
+    bitable-table-id: ${FEISHU_BITABLE_TABLE_ID:}
+    cli-timeout-ms: ${FEISHU_CLI_TIMEOUT_MS:10000}
   ragflow:
     base-url: ${RAGFLOW_BASE_URL:http://host.docker.internal:9380}
     api-key: ${RAGFLOW_API_KEY:}

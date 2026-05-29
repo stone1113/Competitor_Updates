@@ -51,7 +51,7 @@ public class BenchmarkContext {
         /** 近 3 月销量 [{year, month, salesCount, ytdCount}] */
         private List<SalesSnapshot> recentSales = new ArrayList<>();
 
-        /** 32h 内官号价格金融事件文本列表 */
+        /** 36h 内官号价格金融事件文本列表 */
         private List<String> priceEvents = new ArrayList<>();
     }
 

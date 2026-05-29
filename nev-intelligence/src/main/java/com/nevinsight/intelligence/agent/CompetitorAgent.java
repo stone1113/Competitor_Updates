@@ -47,11 +47,11 @@ public class CompetitorAgent implements ReportAgent<CompetitorAgent.Input, Compe
             + "\n"
             + "**任务**：基于全部输入事件生成「今日竞品动态总结」，覆盖所有高价值竞品动作，不能只挑单一板块。\n"
             + "必须输出 3 行，每行以固定标签开头：\n"
-            + "1) 动态总结：用 1-2 句话概括今日最重要的竞品动作，必须点名具体品牌/车型，并覆盖产品、价格、营销、销量中的主要变化。\n"
+            + "1) 动态总结：用 2-3 句话概括今日最重要的竞品动作，必须点名具体品牌/车型，覆盖 4-6 个关键事件，优先包含产品、价格、营销、销量中的代表动作。\n"
             + "2) 风险提示：判断这些动作对猛士 M817/917 的潜在影响，如价格挤压、产品节奏抢先、声量分流、销量差距、终端转化压力；没有明显风险也要说明“暂未发现明确负面信号”。\n"
             + "3) 应对策略：给出猛士可执行的响应建议，优先围绕传播重点、终端话术、价格权益、渠道线索、用户反馈、竞品分流监控。\n"
             + "\n"
-            + "**风格**：分析师口吻，要有判断，不只是罗列。每行控制在 60-120 字。\n"
+            + "**风格**：分析师口吻，要有判断，不只是罗列。动态总结、风险提示、应对策略各控制在 120-180 字。\n"
             + "**内容边界**：只能分析输入事件里的竞品事实、车型、配置升级、价格权益、营销传播、销量变化及其对猛士的影响。\n"
             + "**信息过滤**：忽略平台账号名单、直播频道名单、纯时间段、图片免责声明、泛化口号和无法用于决策的噪声。\n"
             + "**禁止**：禁止编造未给数据；禁止输出链接；禁止照抄事件清单；禁止使用 JSON；禁止新增其他标题；"
@@ -242,7 +242,7 @@ public class CompetitorAgent implements ReportAgent<CompetitorAgent.Input, Compe
     }
 
     /**
-     * v2 入口：仅做今日总结（briefing）。输入是已分类的 32h 新闻列表。
+     * v2 入口：仅做今日总结（briefing）。输入是已分类的 36h 新闻列表。
      * 不再让 LLM 编造 tracking / benchmark / talkingPoints — 那些都用 SQL 数据。
      *
      * @param selfNewsTitles   本品新闻标题列表（按时间倒序）
@@ -254,7 +254,7 @@ public class CompetitorAgent implements ReportAgent<CompetitorAgent.Input, Compe
                                      Map<String, List<String>> competitorBuckets,
                                      List<String> industryNewsTitles) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("## 数据窗口：过去 32 小时\n\n");
+        prompt.append("## 数据窗口：过去 36 小时\n\n");
 
         prompt.append("## 本品 ").append(brandConfig.getName()).append(" 相关新闻 (")
               .append(selfNewsTitles.size()).append(" 条)\n");
@@ -290,7 +290,7 @@ public class CompetitorAgent implements ReportAgent<CompetitorAgent.Input, Compe
      * @param byEvent  event_type → 该类事件列表（每条至少 brand_name + event_summary）
      */
     public String summarizeEvents(java.util.Map<String, java.util.List<com.nevinsight.model.entity.core.WebSearchNews>> byEvent) {
-        StringBuilder prompt = new StringBuilder("## 32h 内已分类竞品事件\n\n");
+        StringBuilder prompt = new StringBuilder("## 36h 内已分类竞品事件\n\n");
         String[][] sections = {
                 {"launch",          "🚀 产品动态"},
                 {"price_finance",   "💰 价格 & 金融政策"},

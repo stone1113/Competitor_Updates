@@ -215,6 +215,8 @@ public class CompetitorCardBuilder {
             elements.add(hr());
             elements.add(kpiRow(launchCnt, priceCnt, campaignCnt, salesCnt));
 
+            List<Object> detailElements = new ArrayList<>();
+
             // ===== 4 类事件板块（v8+: campaign 折叠，sales 走结构化）=====
             int totalEvents = 0;
             if (byEvent != null) {
@@ -224,8 +226,8 @@ public class CompetitorCardBuilder {
                     if ("sales_milestone".equals(et)) {
                         String salesSection = renderSalesSection(gasgooSalesByVs);
                         if (salesSection != null) {
-                            elements.add(hr());
-                            elements.add(divNode("lark_md", salesSection));
+                            detailElements.add(hr());
+                            detailElements.add(divNode("lark_md", salesSection));
                             int total = gasgooSalesByVs == null ? 0
                                     : gasgooSalesByVs.values().stream().mapToInt(List::size).sum();
                             totalEvents += total;
@@ -237,62 +239,30 @@ public class CompetitorCardBuilder {
 
                     String eventSection = renderEventSection(et, rows, insights, summaries);
                     if (eventSection == null || eventSection.trim().isEmpty()) continue;
-                    elements.add(hr());
-                    elements.add(divNode("lark_md", eventSection));
+                    detailElements.add(hr());
+                    detailElements.add(divNode("lark_md", eventSection));
                 }
             }
             if (totalEvents == 0) {
-                elements.add(hr());
-                elements.add(divNode("lark_md",
+                detailElements.add(hr());
+                detailElements.add(divNode("lark_md",
                         "<font color='grey'>**📭 暂无已分类的高价值事件**</font>\n"
                                 + "可能原因：① Bocha 未采集新数据；② 事件分类任务未运行。"));
             }
 
             String marketHotSection = renderMarketHotSection(marketHotEvents, insights);
             if (marketHotSection != null && !marketHotSection.isEmpty()) {
-                elements.add(hr());
-                elements.add(divNode("lark_md", marketHotSection));
+                detailElements.add(hr());
+                detailElements.add(divNode("lark_md", marketHotSection));
             }
 
-            // ===== ⚔️ 技术对标矩阵（改为跳转按钮，详细数据看 H5 页）=====
-            if (matrices != null && !matrices.isEmpty()) {
+            if (!detailElements.isEmpty()) {
                 elements.add(hr());
-                StringBuilder benchHeader = new StringBuilder("**⚔️ 技术对标矩阵**");
-                int totalCompetitors = matrices.stream()
-                        .mapToInt(m -> Math.max(0, m.modelNames.size() - 1)).sum();
-                int totalParams = matrices.stream()
-                        .mapToInt(m -> m.paramRows.size()).sum();
-                benchHeader.append("　<font color='grey'>")
-                      .append(matrices.size()).append(" 桌 · ")
-                      .append(totalCompetitors).append(" 款竞品 · ")
-                      .append(totalParams).append(" 参数项</font>");
-                elements.add(divNode("lark_md", benchHeader.toString()));
-
-                // 每桌一行简介（不再为每桌出独立跳转按钮，统一走下方智能对标入口）
-                for (BenchmarkMatrix matrix : matrices) {
-                    String selfModel = matrix.selfModel == null ? "对标" : matrix.selfModel;
-                    int competitorCount = Math.max(0, matrix.modelNames.size() - 1);
-                    String summary = buildBenchmarkSummary(matrix);
-
-                    StringBuilder line = new StringBuilder();
-                    line.append("**🔸 ").append(selfModel).append("**　")
-                        .append("<font color='grey'>vs ").append(competitorCount)
-                        .append(" 款竞品 · ").append(matrix.paramRows.size())
-                        .append(" 参数</font>");
-                    if (!summary.isEmpty()) {
-                        line.append("\n").append(summary);
-                    }
-                    elements.add(divNode("lark_md", line.toString()));
-                }
+                elements.add(collapsiblePanel("**<font color='blue'>点击展开全部明细 ▼</font>**", detailElements));
             }
 
-            // ===== 智能深度对标统一入口（技术对标矩阵下方唯一按钮）=====
-            String h5Base = (frontendBaseUrl == null || frontendBaseUrl.isEmpty())
-                    ? "http://localhost:3080" : frontendBaseUrl;
-            String benchmarkUrl = h5Base + "/h5/benchmark";
-            elements.add(actionButton("🤖 智能竞品对标", benchmarkUrl));
-
-            elements.add(noteFooter());
+            elements.add(divNode("lark_md", "<font color='grey'>这份日报对你有帮助吗？</font>"));
+            elements.add(feedbackButtonRow(date));
 
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("direction", "vertical");
@@ -830,9 +800,11 @@ public class CompetitorCardBuilder {
                     + "仰望\\s?U(?:7|8L?|9)|小鹏\\s?GX|岚图泰山X8|极狐T1|腾势N8L|比亚迪大唐|"
                     + "奥迪A5L|宏光MINIEV|途观L\\s?ePro)");
     private static final Pattern HIGHLIGHT_NUMBER_PATTERN = Pattern.compile(
-            "(?:至高|最高|售价|起售价|权益|补贴|优惠|订单|大定)?\\s*\\d+(?:\\.\\d+)?\\s*"
-                    + "(?:万|万元|元|公里|km|KM|kWh|度|台|辆|%|折|期)"
-                    + "(?:\\s*(?:0息|免息|权益|补贴|优惠|起|起售|大定|订单))?");
+            "(?:\\d+(?:\\.\\d+)?\\s*L\\s*/\\s*\\d+(?:[,，]\\d{3})*(?:\\.\\d+)?\\s*(?:km|KM|公里)|"
+                    + "(?:(?:至高|最高|售价|起售价|权益|补贴|优惠|订单|大定)\\s*)?"
+                    + "\\d+(?:[,，]\\d{3})*(?:\\.\\d+)?\\s*"
+                    + "(?:万元|万|元|公里|km|KM|kWh|度|台|辆|%|折|期)"
+                    + "(?:\\s*(?:0息|免息|购车权益|尾款减免|权益|补贴|优惠|起|起售|大定|订单))?)");
     private static final Pattern HIGHLIGHT_SIGNAL_PATTERN = Pattern.compile(
             "(华为[^，。；|]{0,10}(?:激光雷达|途灵|乾崑)|巨鲸电池平台3\\.0|天神之眼5\\.0|激光雷达|NOA|800V|"
                     + "智驾|辅助驾驶|云台车身控制|四驱|双电机|底盘|悬架|座舱|轴距|续航|电池|快充|"
@@ -1671,7 +1643,8 @@ public class CompetitorCardBuilder {
     private static void appendBriefingLine(StringBuilder sb, String icon, String label, String content) {
         if (content == null || content.trim().isEmpty()) return;
         if (sb.length() > 0) sb.append("\n\n");
-        String compact = truncateAtSentenceBoundary(content.replaceAll("\\s+", " ").trim(), 78);
+        int maxLen = 160;
+        String compact = truncateAtSentenceBoundary(content.replaceAll("\\s+", " ").trim(), maxLen);
         sb.append(icon).append(" **").append(label).append("：** ")
           .append(highlightImportant(safe(compact)));
     }
@@ -2596,20 +2569,67 @@ public class CompetitorCardBuilder {
         return divNode("lark_md", content);
     }
 
+    /** 日报尾部一键反馈：纯文字按钮，点击后走飞书卡片 callback。 */
+    private static Map<String, Object> feedbackButtonRow(LocalDate date) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("tag", "column_set");
+        row.put("flex_mode", "flow");
+        row.put("background_style", "default");
+        row.put("columns", List.of(
+                feedbackButtonColumn("有用", "useful", date),
+                feedbackButtonColumn("不准", "inaccurate", date),
+                feedbackButtonColumn("太长", "too_long", date)
+        ));
+        return row;
+    }
+
+    private static Map<String, Object> feedbackButtonColumn(String label, String feedback,
+                                                            LocalDate date) {
+        Map<String, Object> column = new LinkedHashMap<>();
+        column.put("tag", "column");
+        column.put("width", "auto");
+        column.put("vertical_align", "top");
+        column.put("elements", List.of(feedbackButton(label, feedback, date)));
+        return column;
+    }
+
+    private static Map<String, Object> feedbackButton(String label, String feedback,
+                                                      LocalDate date) {
+        Map<String, Object> button = new LinkedHashMap<>();
+        button.put("tag", "button");
+        button.put("type", "default");
+        button.put("size", "small");
+        button.put("text", textNode("plain_text", label));
+
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("action", "daily_report_feedback");
+        value.put("feedback", feedback);
+        value.put("reportType", "competitor");
+        value.put("reportDate", date == null ? "" : date.toString());
+
+        Map<String, Object> behavior = new LinkedHashMap<>();
+        behavior.put("type", "callback");
+        behavior.put("value", value);
+        button.put("behaviors", List.of(behavior));
+        return button;
+    }
+
     /** v8+ collapsible_panel（默认收起的次要内容）。 */
     private static Map<String, Object> collapsiblePanel(String headerTitle, String bodyMd) {
+        return collapsiblePanel(headerTitle, List.of(divNode("lark_md", bodyMd)));
+    }
+
+    private static Map<String, Object> collapsiblePanel(String headerTitle, List<Object> bodyElements) {
         Map<String, Object> panel = new LinkedHashMap<>();
         panel.put("tag", "collapsible_panel");
         panel.put("expanded", false);
         Map<String, Object> headerObj = new LinkedHashMap<>();
-        headerObj.put("title", textNode("plain_text", headerTitle));
+        headerObj.put("title", textNode("markdown", headerTitle));
         headerObj.put("background_color", "grey-100");
         headerObj.put("vertical_align", "center");
         headerObj.put("padding", "8px 8px 8px 8px");
         panel.put("header", headerObj);
-        List<Object> els = new ArrayList<>();
-        els.add(divNode("lark_md", bodyMd));
-        panel.put("elements", els);
+        panel.put("elements", bodyElements == null ? Collections.emptyList() : bodyElements);
         return panel;
     }
 

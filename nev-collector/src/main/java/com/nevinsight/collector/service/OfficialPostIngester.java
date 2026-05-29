@@ -29,9 +29,9 @@ import java.util.*;
 @RequiredArgsConstructor
 public class OfficialPostIngester {
 
-    /** ingest 回看窗口（毫秒）—— 跟 CompetitorReportPipeline 32h 对齐，避免日报漏官号一手数据。
+    /** ingest 回看窗口（毫秒）—— 跟 CompetitorReportPipeline 36h 对齐，避免日报漏官号一手数据。
      *  url_hash 唯一约束保证重复 insert 不会双入库。 */
-    private static final long LOOKBACK_MS = 32L * 3600 * 1000;
+    private static final long LOOKBACK_MS = 36L * 3600 * 1000;
 
     private final OfficialAccountConfigMapper configMapper;
     private final WebSearchNewsMapper newsMapper;
@@ -81,7 +81,7 @@ public class OfficialPostIngester {
         LocalDate today = LocalDate.now();
         long now = System.currentTimeMillis();
 
-        // sinceMs 用作"发布时间"过滤上限：32h 内发布的官号帖
+        // sinceMs 用作"发布时间"过滤上限：36h 内发布的官号帖
         long sinceSec = sinceMs / 1000;
         switch (platform) {
             case "wb":
@@ -162,7 +162,7 @@ public class OfficialPostIngester {
             news.setImageUrls(imageUrls);
             news.setPublishedDate(null);
             news.setCrawlDate(today);
-            // 关键：把 add_ts 写成发布时间毫秒，让下游 32h 窗口按发布时间过滤
+            // 关键：把 add_ts 写成发布时间毫秒，让下游 36h 窗口按发布时间过滤
             // （MyBatis-Plus MetaHandler 仅在 add_ts 为 null 时填充，手动设值不会被覆盖）
             news.setAddTs(publishMs);
             news.setLastModifyTs(now);

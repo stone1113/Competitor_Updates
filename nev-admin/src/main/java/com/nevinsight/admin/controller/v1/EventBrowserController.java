@@ -41,7 +41,7 @@ public class EventBrowserController {
             @RequestParam(defaultValue = "30") int pageSize) {
 
         if (since == null) {
-            since = System.currentTimeMillis() - 32L * 3600 * 1000;
+            since = System.currentTimeMillis() - 36L * 3600 * 1000;
         }
 
         LambdaQueryWrapper<WebSearchNews> qw = new LambdaQueryWrapper<>();
@@ -65,11 +65,11 @@ public class EventBrowserController {
         return ApiResponse.success(out);
     }
 
-    /** 32h 内按 event_type 分布统计（前端 tab 计数用）。 */
+    /** 36h 内按 event_type 分布统计（前端 tab 计数用）。 */
     @GetMapping("/stats")
     public ApiResponse<Map<String, Long>> stats(
             @RequestParam(required = false) Long since) {
-        if (since == null) since = System.currentTimeMillis() - 32L * 3600 * 1000;
+        if (since == null) since = System.currentTimeMillis() - 36L * 3600 * 1000;
         // 用 MyBatis Plus 的 group 查询
         String[] types = {"launch", "price_finance", "campaign", "sales_milestone", "other", "spam"};
         Map<String, Long> counts = new LinkedHashMap<>();

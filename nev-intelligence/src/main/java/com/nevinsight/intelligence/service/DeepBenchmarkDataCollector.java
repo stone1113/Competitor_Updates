@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * 拉本品 + N 个竞品的：
  *   - autohome_spec 67 参数（规范化 + 过滤空值）
  *   - gasgoo_sales_record 近 3 月销量
- *   - web_search_news 32h 内官号价格金融事件
+ *   - web_search_news 36h 内官号价格金融事件
  *
  * 输出 BenchmarkContext，喂给 5 个 Analyst Agent。
  */
@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DeepBenchmarkDataCollector {
 
-    private static final long PRICE_WINDOW_MS = 32L * 3600 * 1000;
+    private static final long PRICE_WINDOW_MS = 36L * 3600 * 1000;
 
     private final AutohomeSeriesConfigMapper configMapper;
     private final AutohomeSpecMapper specMapper;
@@ -133,7 +133,7 @@ public class DeepBenchmarkDataCollector {
             }).collect(Collectors.toList()));
         }
 
-        // 4. 32h 内官号金融政策事件（用车型名 / 品牌名模糊匹配）
+        // 4. 36h 内官号金融政策事件（用车型名 / 品牌名模糊匹配）
         long sinceMs = System.currentTimeMillis() - PRICE_WINDOW_MS;
         // 复用 findLatestFinanceByModel（已含车型名模糊 + 官号过滤）
         String modelKey = stripBrandPrefix(modelName);

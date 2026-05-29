@@ -112,9 +112,9 @@ crawler-service/  = Python + FastAPI + MediaCrawler，独立运行
 
 | 板块 | 数据源 | 关键过滤 |
 |---|---|---|
-| 🚀 新车上市 / 改款 | `web_search_news.event_type='launch'` | 32h 窗口；排除已进 💰 板块的 id（去重） |
-| 💰 价格 & 金融政策 | `findFinanceCandidates` 聚合 launch+price_finance 中含「图含/售价/万元/优惠/补贴/0息/首付」字眼的官号帖 | 32h 窗口；**仅官号** (`source_tool LIKE '%_official'`) |
-| 📣 营销活动 | `event_type='campaign'` | 32h 窗口 |
+| 🚀 新车上市 / 改款 | `web_search_news.event_type='launch'` | 36h 窗口；排除已进 💰 板块的 id（去重） |
+| 💰 价格 & 金融政策 | `findFinanceCandidates` 聚合 launch+price_finance 中含「图含/售价/万元/优惠/补贴/0息/首付」字眼的官号帖 | 36h 窗口；**仅官号** (`source_tool LIKE '%_official'`) |
+| 📣 营销活动 | `event_type='campaign'` | 36h 窗口 |
 | 📈 销量 & 交付里程碑 | **结构化**：盖世汽车 `gasgoo_sales_record`（每车型最新月）；**叙事**：官号销量帖 | 不限时间窗 |
 | ⚔️ 技术对标矩阵 | `autohome_spec`（按 vs_self_model 分多桌） | 卡片只列跳转按钮，详细数据在前端 |
 
@@ -156,9 +156,9 @@ crawler-service/  = Python + FastAPI + MediaCrawler，独立运行
                   → asyncmy 写 weibo_note (含新字段 pics)
 
 [5-10 分钟后 / 手动] OfficialPostIngester.ingestAll
-                  → SELECT weibo_note 32h 内官号帖 + 新字段 pics
+                  → SELECT weibo_note 36h 内官号帖 + 新字段 pics
                   → 写 web_search_news (source_tool=weibo_official, image_urls=pics)
-                  → 关键：把 publish_time 写入 add_ts（覆盖 MetaHandler 默认值），下游 32h 窗口按发布时间过滤
+                  → 关键：把 publish_time 写入 add_ts（覆盖 MetaHandler 默认值），下游 36h 窗口按发布时间过滤
 ```
 
 **`official_account_config` 表**（`/collector/official-accounts` 维护）：
@@ -284,9 +284,9 @@ Vue UI → Java (nev-admin) → HTTP → Python (FastAPI 8091) → subprocess �
 **微博官号本地链路**：
 1. 启动 8091 crawler-service，并确认日志里 `mysql env` 指向 `127.0.0.1:3306/nev_insight` 且 `pwd=SET`。
 2. 触发 Java 端 `POST /api/v1/official-accounts/crawl-now?platform=wb`，Java 会按 `official_account_config` 调 crawler-service 的 creator 模式。
-3. 爬取成功后执行 `POST /api/v1/official-accounts/ingest-now`，把 `weibo_note` 32h 内官号帖写入 `web_search_news(source_tool=weibo_official)`。
+3. 爬取成功后执行 `POST /api/v1/official-accounts/ingest-now`，把 `weibo_note` 36h 内官号帖写入 `web_search_news(source_tool=weibo_official)`。
 4. 需要卡片事件类型时再执行 `POST /api/v1/collector/extract-events?maxBatches=N`；OCR 会在事件抽取末尾链式触发，或手动 `POST /api/v1/collector/ocr-enrich?limit=N`。
-5. 注意 `weibo_note.create_time` 是秒，`web_search_news.add_ts` 是毫秒；OfficialPostIngester 会把发布时间写进 `add_ts` 供 32h 窗口使用。
+5. 注意 `weibo_note.create_time` 是秒，`web_search_news.add_ts` 是毫秒；OfficialPostIngester 会把发布时间写进 `add_ts` 供 36h 窗口使用。
 
 ### 数据库
 

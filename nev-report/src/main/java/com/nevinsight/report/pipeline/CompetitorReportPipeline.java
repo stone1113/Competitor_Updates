@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  * 竞品分析日报管线 v2：新闻驱动。
  *
  * 5 步：
- *  1. SQL 取 32h 内三类新闻（self/competitor/industry）
+ *  1. SQL 取 36h 内三类新闻（self/competitor/industry）
  *  2. SQL 拼 autohome_spec 对标矩阵 (无 LLM 解读)
  *  3. CompetitorAgent.summarizeBriefing 仅做 1-2 句速览
  *  4. CompetitorAgent.runTalkingPointsOnly 用 RAGFlow 出销售话术（暂保留）
@@ -50,8 +50,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CompetitorReportPipeline {
 
-    /** 32h 窗口（毫秒） */
-    private static final long WINDOW_MS = 32L * 3600 * 1000;
+    /** 36h 窗口（毫秒） */
+    private static final long WINDOW_MS = 36L * 3600 * 1000;
     /** 战略动作看近 3 天。 */
     private static final long STRATEGIC_WINDOW_MS = 72L * 3600 * 1000;
 
@@ -141,7 +141,7 @@ public class CompetitorReportPipeline {
     public Result run(LocalDate targetDate, boolean push, boolean supplementWebNews) {
         LocalDate date = targetDate != null ? targetDate : LocalDate.now();
         long sinceMs = System.currentTimeMillis() - WINDOW_MS;
-        log.info("[CompetitorPipeline] v3 start date={} window=32h since={}", date, sinceMs);
+        log.info("[CompetitorPipeline] v3 start date={} window=36h since={}", date, sinceMs);
 
         // ===== Step 0: 微博之外的网页补采 =====
         // 按车系配置里的品牌+车型搜索近 24h 汽车事件，入 web_search_news 后复用事件分类。
@@ -166,7 +166,7 @@ public class CompetitorReportPipeline {
         }
 
         // ===== Step 1: 按 event_type 拉事件 + 仅保留对标品牌 + 去重 + 按品牌排序 =====
-        // v7: sales_milestone 走专路径 — 每品牌最新一条官号一手数据（不限 32h）
+        // v7: sales_milestone 走专路径 — 每品牌最新一条官号一手数据（不限 36h）
         // v8+: price_finance 聚合所有含价格信息的官号帖（含 launch 中带价格的）；launch 排除已进 price 的 id
         Map<String, List<WebSearchNews>> byEvent = new LinkedHashMap<>();
         Map<String, FilterAudit> filterAudit = new LinkedHashMap<>();
@@ -321,7 +321,7 @@ public class CompetitorReportPipeline {
                 log.warn("[CompetitorPipeline] briefing LLM failed: {}", e.getMessage());
             }
         } else {
-            briefing = "近 32 小时无已分类的高价值事件 — 检查事件分类任务是否运行（POST /api/v1/collector/extract-events）。";
+            briefing = "近 36 小时无已分类的高价值事件 — 检查事件分类任务是否运行（POST /api/v1/collector/extract-events）。";
         }
         log.info("[CompetitorPipeline] briefing: {}",
                 briefing.length() > 120 ? briefing.substring(0, 120) + "…" : briefing);

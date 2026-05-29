@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS daily_report_feedback_event (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_id            VARCHAR(128) NOT NULL COMMENT '飞书 card.action.trigger event_id',
+    report_type         VARCHAR(32) NOT NULL DEFAULT 'competitor',
+    report_date         DATE,
+    feedback_type       VARCHAR(32) NOT NULL COMMENT 'useful/inaccurate/too_long',
+    feedback_label      VARCHAR(32) NOT NULL COMMENT '有用/不准/太长',
+    operator_open_id    VARCHAR(128),
+    operator_union_id   VARCHAR(128),
+    open_message_id     VARCHAR(128),
+    open_chat_id        VARCHAR(128),
+    bitable_status      VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
+    bitable_record_id   VARCHAR(128),
+    last_error          TEXT,
+    add_ts              BIGINT NOT NULL,
+    last_modify_ts      BIGINT NOT NULL,
+    UNIQUE KEY uk_feedback_event_id (event_id),
+    INDEX idx_report_date (report_type, report_date),
+    INDEX idx_feedback_type (feedback_type),
+    INDEX idx_bitable_status (bitable_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='日报飞书卡片反馈事件';

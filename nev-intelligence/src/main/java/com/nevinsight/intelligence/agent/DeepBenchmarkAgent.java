@@ -154,8 +154,8 @@ public class DeepBenchmarkAgent {
         } else {
             sb.append(buildParamTable(dim, ctx));
             if (dim == Dimension.PRICE) {
-                // 价格维度额外带 32h 价格事件
-                sb.append("\n【近 32h 官号价格金融事件】\n");
+                // 价格维度额外带 36h 价格事件
+                sb.append("\n【近 36h 官号价格金融事件】\n");
                 for (String model : ctx.getAllModels()) {
                     ModelData md = ctx.getModelDataMap().get(model);
                     if (md == null || md.getPriceEvents().isEmpty()) continue;

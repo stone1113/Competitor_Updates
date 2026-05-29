@@ -19,7 +19,7 @@ public interface WebSearchNewsMapper extends BaseMapper<WebSearchNews> {
             @Param("date") LocalDate date,
             @Param("limit") int limit);
 
-    /** 32h 窗口内某 category 的新闻（self/competitor/industry），按 add_ts 倒序。 */
+    /** 36h 窗口内某 category 的新闻（self/competitor/industry），按 add_ts 倒序。 */
     @Select("SELECT * FROM web_search_news " +
             "WHERE category = #{category} AND add_ts >= #{sinceMs} " +
             "ORDER BY add_ts DESC LIMIT #{limit}")
@@ -61,7 +61,7 @@ public interface WebSearchNewsMapper extends BaseMapper<WebSearchNews> {
                           @Param("models") String models,
                           @Param("extractTs") Long extractTs);
 
-    /** PR12 用：按 event_type 拉 32h 内事件，importance DESC + add_ts DESC。 */
+    /** PR12 用：按 event_type 拉 36h 内事件，importance DESC + add_ts DESC。 */
     @Select("SELECT * FROM web_search_news " +
             "WHERE event_type = #{eventType} AND add_ts >= #{sinceMs} " +
             "ORDER BY event_importance DESC, add_ts DESC LIMIT #{limit}")
@@ -70,7 +70,7 @@ public interface WebSearchNewsMapper extends BaseMapper<WebSearchNews> {
             @Param("sinceMs") long sinceMs,
             @Param("limit") int limit);
 
-    /** 按事件类型取 32h 内事件：微博官号 > 其他官号 > 网页补采。 */
+    /** 按事件类型取 36h 内事件：微博官号 > 其他官号 > 网页补采。 */
     @Select("SELECT * FROM web_search_news " +
             "WHERE event_type = #{eventType} AND add_ts >= #{sinceMs} " +
             "ORDER BY CASE " +
@@ -155,7 +155,7 @@ public interface WebSearchNewsMapper extends BaseMapper<WebSearchNews> {
     List<WebSearchNews> findLatestAuthoritativeSalesByBrand();
 
     /**
-     * v8: 按 event_type + 仅官号源（source_tool 以 _official 结尾）+ 32h 窗口取事件。
+     * v8: 按 event_type + 仅官号源（source_tool 以 _official 结尾）+ 36h 窗口取事件。
      * 用于 price_finance 板块严格官号过滤。
      */
     @Select("SELECT * FROM web_search_news " +
